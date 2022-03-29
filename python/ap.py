@@ -75,25 +75,29 @@ def _compute_sims(df):
     return df
 
 
-def _load_pairs(df):
-    ''' loads chunk pairs and joins with given data and features
+def _load_pairs(df, extra_cols=[]):
+    ''' loads chunk pairs and joins with given data, features, and extra columns
 
     args:
         df: pandas dataframe with normalized features per chunk
+        extra_paired_cols: extra columns, in addition to features, to include 
+            regarding paired chunks
     returns:
         pandas dataframe with chunk pairs (with features) per row 
     '''
     # tmp1: pairs of chunk ids (adjacent and non-adjacent turn exchange chunks)
     tmp1 = db.pd_read_sql_query(
         'SELECT p_or_x, chu_id1, chu_id2, rid FROM chunk_pairs')
-    # tmp2: all chu_ids with respective feature values
-    tmp2 = df.loc[:, ['chu_id'] + cfg.FEATURES].set_index('chu_id')
+    # tmp2: all chu_ids with respective feature values and extra columns
+    loc_cols = ['chu_id'] + cfg.FEATURES + extra_cols
+    tmp2 = df.loc[:, loc_cols].set_index('chu_id')
     # tmp3: df joined with pairs -> df with second, turn-final, paired chu_id
     tmp3 = df.join(tmp1.set_index('chu_id2'), on='chu_id')
     # final step: full df data joined with features of paired, turn-final chu_id
     df = tmp3.join(tmp2, rsuffix='_paired', on='chu_id1')
-    # remove auxiliary columns and reset to running index
-    df = df.reset_index().drop(['chu_id1', 'index'], axis=1)
+    df.rename(columns={'chu_id1': 'chu_id_paired'}, inplace=True)
+    # reset to running index
+    df.reset_index(drop=True, inplace=True)
     # add columns for similarity between paired chunks for all features
     df = _compute_sims(df)
     return df
@@ -110,11 +114,13 @@ def _exclude_woz_and_x(df_bt):
 #                                MAIN FUNCTIONS                                #
 ################################################################################
 
-def load_data(nrm_type):
+def load_data(nrm_type, extra_paired_cols=[]):
     ''' loads data into one wide dataframe with redundant info 
     
     args: 
         nrm_type: how to normalize features (see cfg.NRM_TYPES)
+        extra_paired_cols: extra columns, in addition to features, to include 
+            regarding paired chunks
     returns:
         pandas dataframe with data per chunk (or chunk pair, where applicable),
         with running index (not chu_id because non-adjacent chunk pairs lead to 
@@ -126,7 +132,7 @@ def load_data(nrm_type):
     df_bt = _normalize_features(df_bt, nrm_type)
     # add features of paired chunks (partner and non-partner) to each row and
     # compute similarity for each pair and all features
-    df_bt = _load_pairs(df_bt)
+    df_bt = _load_pairs(df_bt, extra_paired_cols)
     return df_bt
 
 
