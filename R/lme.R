@@ -159,7 +159,10 @@ get_ent_formula <- function(rnd_fx_ids, ses_type) {
 get_ent_model <- function(
         rnd_fx_ids, ses_type, print_formula, print_summary, print_r2) {
     frm <- get_ent_formula(rnd_fx_ids, ses_type)
-    m = lmer(frm)
+    if(length(rnd_fx_ids) > 0)
+        m = lmer(frm)
+    else
+        m = lm(frm)
     if(print_formula)
         print(frm)
     if(print_summary)
@@ -182,8 +185,15 @@ run_model_comp <- function(m0, rnd_fx_ids, ses_type) {
             print(res)
             out <- append(out, list(pair(rnd_term, res)))
         }
-    else
-        print('no model comparison, needs at least two random effects!')
+    else if (length(rnd_fx_ids) == 1) {
+        m_sub <- get_ent_model(list(), ses_type, FALSE, FALSE, FALSE)
+        rnd_term <- rnd_fx_terms[[rnd_fx_ids[[1]]]]
+        res <- as.data.frame(anova(m0, m_sub))
+        print(rnd_term)
+        print(res)
+        out <- append(out, list(pair(rnd_term, res)))
+    } else
+        print('no model comparison, needs at least one random effect!')
     return(out)
 }
 
@@ -193,7 +203,10 @@ run_models <- function(rnd_fx_ids, ses_type) {
     # main model computation, with print
     m0 <- get_ent_model(rnd_fx_ids, ses_type, FALSE, TRUE, TRUE)
     # results for random and fixed effects 
-    df_res_rnd <- as.data.frame(VarCorr(m0))
+    if (length(rnd_fx_ids) > 0)
+        df_res_rnd <- as.data.frame(VarCorr(m0))
+    else
+        df_res_rnd <- as.data.frame(list())
     df_res_fix <- as.data.frame(coef(summary(m0)))
     # model comparison to get p-values for random effects
     res_comp <- run_model_comp(m0, rnd_fx_ids, ses_type)

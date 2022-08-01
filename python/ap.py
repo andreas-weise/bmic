@@ -114,10 +114,11 @@ def _exclude_woz_and_x(df_bt):
 #                                MAIN FUNCTIONS                                #
 ################################################################################
 
-def load_data(nrm_type, extra_paired_cols=[]):
+def load_data(corpus_id, nrm_type, extra_paired_cols=[]):
     ''' loads data into one wide dataframe with redundant info 
     
     args: 
+        corpus_id: one of the constants in cfg.CORPUS_ID
         nrm_type: how to normalize features (see cfg.NRM_TYPES)
         extra_paired_cols: extra columns, in addition to features, to include 
             regarding paired chunks
@@ -127,7 +128,7 @@ def load_data(nrm_type, extra_paired_cols=[]):
         multiple rows per chunk)
     '''
     # load raw data ("big table" dataframe with redundant info)
-    df_bt = db.pd_read_sql_query(sql_fname=cfg.SQL_BT_FNAME)
+    df_bt = db.pd_read_sql_query(sql_fname=cfg.get_bt_fname(corpus_id))
     # normalize features as needed
     df_bt = _normalize_features(df_bt, nrm_type)
     # add features of paired chunks (partner and non-partner) to each row and
@@ -178,7 +179,7 @@ def lsim(df_bt, grp_by=cfg.GRP_BYS):
         df_sims = df_sims.join(lsims)
         # exclude nan (NULL) feature values
         df_sims_f = df_sims[pd.notna(df_sims[f + '_sim_p'])]
-        for ses_type in ['GAME', 'CONV']:
+        for ses_type in set(df_bt['ses_type']):
             # result for entire session type
             if cfg.GRP_BY_SES_TYPE in grp_by:
                 results[f][(ses_type, 0, 0, 0)] = \
@@ -362,7 +363,7 @@ def gcon(df_bt):
     results = {f: {} for f in cfg.FEATURES}
     # compute global conv. per session type (all, games, convs) and feature
     for f in cfg.FEATURES:
-        for ses_type in [0, 'GAME', 'CONV']:
+        for ses_type in [0] + list(set(df_bt['ses_type'])):
             # ignore redundant rows (distances are symmetric) 
             df_sub = df_grps.iloc[::2]
             df_sub = df_sub.loc[ses_type] if ses_type else df_sub
@@ -450,7 +451,7 @@ def gsim(df_bt, df_spk_pairs_orig):
         df_spk_pairs['spk_id'] = [v[3] for v in df_spk_pairs.index]
         if tsk_or_ses == 'ses':
             for f in cfg.FEATURES:
-                for ses_type in [0, 'GAME', 'CONV']:
+                for ses_type in [0] + list(set(df_bt['ses_type'])):
                     df_sub2 = df_spk_pairs.loc[ses_type] if ses_type \
                         else df_spk_pairs
                     # ignore samples without speaker

@@ -27,7 +27,8 @@ def _get_base_path(grp_id, mch_id, ses_type, is_woz):
     ''' returns root path for given subject's session(s) of given type '''
     subdir = 'switchboard' if ses_type == 'CONV' \
         else 'objects' + ('_woz' if is_woz else '')
-    return '%sGroup%d/Machine%d/%s/' % (cfg.CORPUS_PATH, grp_id, mch_id, subdir)
+    return '%sGroup%d/Machine%d/%s/' % \
+        (cfg.CORPUS_PATH_BMIC, grp_id, mch_id, subdir)
 
 
 def get_grp_dir_indices():
@@ -223,6 +224,7 @@ def write_tur_list(ses_id):
 ################################################################################
 
 def readlines(path, fname):
+    ''' yields all lines in given file '''
     with open(path + fname) as file:
         return file.readlines()
 
@@ -290,31 +292,6 @@ def read_log_file(grp_id, mch_id, rnd, ses_type, is_woz):
     # extract group record date and session init time from filename
     d, t = fname.split('.')[0].split('_')[3:]
     return readlines(path, fname), d, t
-
-
-def load_tokens(
-        tsk_or_ses, tsk_ses_id, a_or_b, excl=[], func=lambda t: t):
-    ''' loads tokens of given task/session & speaker, returns filtered list '''
-    path, fname = get_lmn_pfn(tsk_or_ses, tsk_ses_id, a_or_b)
-    fname = path + fname + '.txt'
-    if os.path.isfile(fname):
-        with open(fname) as txt_file:
-            tokens = '\n'.join(txt_file.readlines()).replace('\n', ' ').split()
-            tokens = [func(t) for t in tokens if t not in excl]
-    else:
-        tokens = []
-    return tokens
-
-
-def load_all_tokens():
-    tokens = []
-    for ses_id in db.get_ses_ids():
-        for a_or_b in ['A', 'B']:
-            path, fname = get_lmn_pfn('ses', ses_id, a_or_b)
-            with open(path + fname + '.txt') as txt_file:
-                lines = txt_file.readlines()
-                tokens += '\n'.join(lines).replace('\n', ' ').split()
-    return tokens
 
 
 

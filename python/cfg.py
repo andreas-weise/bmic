@@ -10,12 +10,18 @@ VAD_PATH = '../../data/meta/vad/'
 WAV_PATH = '../../data/wav/'
 SQL_PATH = '../sql/'
 
+# corpus identifiers
+CORPUS_ID_BMIC = 'BMIC'
+CORPUS_ID_GC  = 'GC'
+CORPUS_IDS = [CORPUS_ID_BMIC, CORPUS_ID_GC]
+
 # external paths (corpus root directory and temporary file directory)
-CORPUS_PATH = '../../data/'
+CORPUS_PATH_BMIC = '../../data/'
 TMP_PATH = '../../tmp/'
 
 # database filename
-DB_FNAME = '../../bgc.db'
+DB_FNAME_BMIC = '../../bmic.db'
+DB_FNAME_GC = '../../gc.db'
 
 # transcript filenames
 TRANS_ASR_FNAME = 'transcript.txt' 
@@ -23,12 +29,15 @@ TRANS_FIN_FNAME = 'transcript_final.txt'
 
 # praat and sql scripts
 PRAAT_SCRIPT_FNAME = '../praat/extract_features.praat'
-SQL_INIT_FNAME = 'init.sql'
+SQL_INIT_FNAME_BMIC = 'init_bmic.sql'
 SQL_QR_FNAME = 'process_question_responses.sql'
 SQL_CU_FNAME = 'cleanup.sql'
 SQL_AT_FNAME = 'aux_tables.sql'
-SQL_BT_FNAME = 'big_table.sql'
-SQL_SP_FNAME = 'speaker_pairs.sql'
+SQL_BT_FNAME_BMIC = 'big_table_bmic.sql'
+SQL_BT_FNAME_GC = 'big_table_gc.sql'
+SQL_SP_FNAME_BMIC = 'speaker_pairs_bmic.sql'
+SQL_SP_FNAME_GC = 'speaker_pairs_gc.sql'
+SQL_EXT_FNAME = './libsqlitefunctions'
 
 # format of timestamps in log files
 TS_FMT = '%H:%M:%S:%f'
@@ -36,6 +45,7 @@ TS_FMT = '%H:%M:%S:%f'
 # normalization types
 NRM_SPK = 'SPEAKER'
 NRM_SEX = 'SEX'
+NRM_GND = 'GENDER'
 NRM_RAW = 'RAW'
 NRM_TYPES = [NRM_SPK, NRM_SEX, NRM_RAW]
 
@@ -87,6 +97,32 @@ FEATURES = [
     'nhr',
     'rate_syl'
 ]
+
+
+def check_corpus_id(corpus_id):
+    assert corpus_id in CORPUS_IDS, 'unknown corpus id'
+
+
+def check_mea_id(mea_id):
+    assert mea_id in MEASURES, 'unknown entrainment measure'
+
+
+def get_db_fname(corpus_id):
+    check_corpus_id(corpus_id)
+    return DB_FNAME_GC if corpus_id == CORPUS_ID_GC else DB_FNAME_BMIC
+
+
+def get_bt_fname(corpus_id):
+    check_corpus_id(corpus_id)
+    return SQL_BT_FNAME_GC if corpus_id == CORPUS_ID_GC else SQL_BT_FNAME_BMIC
+
+
+def check_grp_by(grp_by, supported=GRP_BYS):
+    assert len(grp_by) > 0, 'at least one grp_by value needed'
+    for g in grp_by:
+        assert g in GRP_BYS, 'unknown grp_by value found'
+        assert g in supported, 'unsupported grp_by value found'
+
 
 # watson access credentials, loaded from external file
 # with open('<INSERT_FILE_NAME>') as file:

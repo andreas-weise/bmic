@@ -4,6 +4,8 @@ The Brooklyn Multi-Interaction Corpus (B-MIC) was designed for the analysis of e
 
 This repository contains code for the initial processing of the audio and log files as well as for entrainment analysis. The corpus itself is not included but available on request. 
 
+The code also handles analysis (but not audio processing etc.) for the Columbia Games Corpus for comparison with the B-MIC game sessions.
+
 An analysis regarding the influence of personality traits on entrainment, with full results, can be found in jupyter/7_lme.ipynb.
 
 ## Directory Overview

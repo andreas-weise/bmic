@@ -13,8 +13,9 @@ import fio
 ################################################################################
 
 class DatabaseConnection(object):
-    def __init__(self):
-        self._conn = sqlite3.connect(cfg.DB_FNAME)
+    def __init__(self, db_fname):
+        self._conn = sqlite3.connect(db_fname)
+        self._conn.load_extension(cfg.SQL_EXT_FNAME)
         self._c = self._conn.cursor()
 
     def __del__(self):
@@ -38,25 +39,33 @@ class DatabaseConnection(object):
     def get_conn(self):
         return self._conn
 
+# global connection object; status maintained through functions below
+# all functions interacting with database (setters etc.) assume open connection
 dbc = None
 
 
-def connect():
+def connect(corpus_id):
+    ''' instantiates global connection object for given corpus '''
     global dbc
-    dbc = DatabaseConnection()
+    dbc = DatabaseConnection(cfg.get_db_fname(corpus_id))
 
 
 def close():
+    ''' closes connection by deleting global connection object '''
     global dbc
     del dbc
     dbc = None
 
 
 def commit():
+    ''' issues commit to database via global connection object '''
     dbc.commit()
 
 
 def get_conn():
+    ''' returns internal sqlite3 connection of global connection object 
+
+    this should rarely be necessary, only if conn needs to be passed on '''
     return dbc.get_conn()
 
 
@@ -124,6 +133,7 @@ def ins_chu(chu_id, tur_id, chunk_index, start_time, end_time, words):
 ################################################################################
 
 def set_ses_status(ses_id, status):
+    ''' updates the session status (processing progress, see init_bmic.sql) '''
     sql_stmt = \
         'UPDATE sessions\n' \
         'SET    status = ?\n' \
@@ -132,6 +142,7 @@ def set_ses_status(ses_id, status):
 
 
 def set_ses_time(ses_id, t):
+    ''' set start_time of session recording '''
     sql_stmt = \
         'UPDATE sessions\n' \
         'SET    init_time = ?\n' \
@@ -141,6 +152,7 @@ def set_ses_time(ses_id, t):
 
 
 def set_grp_date(grp_id, d):
+    ''' set date of group recording '''
     sql_stmt = \
         'UPDATE groups\n' \
         'SET    record_date = ?\n' \
@@ -162,6 +174,7 @@ def set_ratings(ses_id, ratings1, ratings2):
 
 
 def set_scores(ses_id, scores):
+    ''' set scores achieved for all tasks in given session '''
     sql_stmt = \
         'UPDATE tasks\n' \
         'SET    score = ?\n' \
@@ -172,6 +185,7 @@ def set_scores(ses_id, scores):
 
 
 def set_turn_indices():
+    ''' set task-specific turn indices for all turns '''
     subselect = \
         'SELECT MAX(tur2.turn_index_ses) ' \
         'FROM   turns tur2 ' \
@@ -188,6 +202,7 @@ def set_turn_indices():
 
 
 def set_features(chu_id, features):
+    ''' sets features of given chunk '''
     sql_stmt = \
         'UPDATE chunks\n' \
         'SET    pitch_min = ?,\n' \
@@ -227,6 +242,7 @@ def set_features(chu_id, features):
 ################################################################################
 
 def get_tsk_id(ses_id, task_index):
+    ''' returns tsk_id for given task_index within given session '''
     sql_stmt = \
         'SELECT tsk_id\n' \
         'FROM   tasks\n' \
@@ -245,6 +261,7 @@ def get_ses_id(tsk_id):
 
 
 def get_tsk_ids():
+    ''' returns tsk_id for all tasks in order '''
     sql_stmt = \
         'SELECT tsk_id\n' \
         'FROM   tasks\n' \
@@ -253,6 +270,7 @@ def get_tsk_ids():
 
 
 def get_ses_ids():
+    ''' returns ses_id for all sessions in order '''
     sql_stmt = \
         'SELECT ses_id\n' \
         'FROM   sessions\n' \
@@ -281,6 +299,7 @@ def get_a_or_b(tsk_or_ses, tsk_ses_id, spk_id):
 
 
 def get_role(tsk_id, spk_a_or_b):
+    ''' returns role of given speaker (A or B) in given task ''' 
     sql_stmt = \
         'SELECT a_or_b\n' \
         'FROM   tasks\n' \
@@ -290,6 +309,7 @@ def get_role(tsk_id, spk_a_or_b):
 
 
 def get_que_id(qai_id, seq):
+    ''' returns que_id of question at given position in given questionnaire '''
     sql_stmt = \
         'SELECT que_id\n' \
         'FROM   questions\n' \
@@ -299,6 +319,7 @@ def get_que_id(qai_id, seq):
 
 
 def get_tur_duration(ses_id, turn_index_ses):
+    ''' returns total duration of turn with given index within given session '''
     sql_stmt = \
         'SELECT SUM(chu.end_time - chu.start_time),\n' \
         '       CASE\n' \
@@ -320,6 +341,7 @@ def get_tur_duration(ses_id, turn_index_ses):
 
 
 def get_tur_cnt(ses_id):
+    ''' returns total number of turns in given session '''
     sql_stmt = \
         'SELECT COUNT(tur_id)\n' \
         'FROM   turns tur\n' \
@@ -342,6 +364,7 @@ def get_tur_id(ses_id, turn_index_ses):
 
 
 def get_tur_spk(ses_id, turn_index):
+    ''' identifies speaker of turn with given index in given session '''
     sql_stmt = \
         'SELECT CASE\n' \
         '           WHEN tur.speaker_role == "d" AND tsk.a_or_b == "A"\n' \
@@ -423,6 +446,9 @@ def delete_all():
 
 
 def executescript(path, fname):
+    ''' executes given file as script '''
+    # users should obviously not have the ability to execute arbitrary scripts,  
+    # but this project is not for end users, just privately run data analysis
     dbc.executescript(''.join(fio.readlines(path, fname)))
 
 
@@ -548,6 +574,7 @@ def set_words(grp_id, mch_id, rnd, start, end, words_fin, words_asr):
 
 
 def store_annotations(annotator, ses_id, anns):
+    ''' writes given annotator's annotations for given session to db '''
     sql_stmt = \
         'INSERT INTO turn_annotations(' \
         'tur_id, annotator, ann_index, ann_unix_ts, ' \
